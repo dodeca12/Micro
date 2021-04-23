@@ -3,26 +3,38 @@
 #include <termio.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <errno.h>
+
+#include "micro.h"
 
 struct termios original_termios;
 
+void die(const char *s)
+{
+    perror(s);
+    exit(1);
+}
+
 void disableRawInputMode()
 {
-    tcsetattr(STDIN_FILENO, TCSAFLUSH, &original_termios);
+    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &original_termios) == -1)
+        die("tcsetattr");
 }
 
 void enableRawInputMode()
 {
-    tcgetattr(STDIN_FILENO, &original_termios);
+    if (tcgetattr(STDIN_FILENO, &original_termios) == -1)
+        die("tcsetattr");
+
     atexit(disableRawInputMode);
 
     /*
-    c_lflag = field for "local flags"
-    c_oflag = field for "output flags"'
-    c_iflag = field for "input flags"
-    c_cflag = field for "control flags"
+    * c_lflag = field for "local flags"
+    * c_oflag = field for "output flags"'
+    * c_iflag = field for "input flags"
+    * c_cflag = field for "control flags"
     */
-    
+
     // BRKINT = Signal interrupt on break
     // ICRNL = Map CR to NL on input
     // INPCK = Enable input parity check
@@ -34,7 +46,7 @@ void enableRawInputMode()
     // ICANON = Canonical input (erase and kill processing)
     // ISIG = Enable signals
     // IEXTEN = Enable non-POSIX special characters
-    
+
     struct termios raw = original_termios;
     raw.c_lflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
     // Turning the above flags off are not necessary for modern usage, but it is done to keep with the tradition when enabling "raw mode"
@@ -42,16 +54,23 @@ void enableRawInputMode()
     raw.c_cflag |= (CS8);
     raw.c_lflag &= ~(ECHO | ICANON | ISIG | IEXTEN);
 
-    tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
+    // c_cc; where cc stands for "control chraracters"
+    // VMIN, VTIME indices into c_cc field
+    raw.c_cc[VMIN] = 0;  // VMIN value sets the min number of bytes of input before read() returns
+    raw.c_cc[VTIME] = 1; // VTIME value sets max value of time (in 1/10 sec) before read() returns
+
+    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1)
+        die("tcsetattr");
 }
 
 int main()
 {
     enableRawInputMode();
-
-    char c;
-    while (read(STDIN_FILENO, &c, 1) == 1 && c != 'q')
+    while (1)
     {
+        char c = '\0';
+        if (read(STDIN_FILENO, &c, 1) == -1 && errno != EAGAIN)
+            die("read");
         if (iscntrl(c))
         {
             printf("%d\r\n", c);
@@ -60,6 +79,8 @@ int main()
         {
             printf("%d ('%c')\r\n", c, c);
         }
+        if (c == 'q')
+            break;
     }
     return 0;
 }

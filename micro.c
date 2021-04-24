@@ -11,6 +11,10 @@ struct termios original_termios;
 
 void die(const char *s)
 {
+    // Clears screen on exit
+    write(STDIN_FILENO, "\x1b[2J", 4);
+    write(STDIN_FILENO, "\x1b[H", 3);
+
     perror(s);
     exit(1);
 }
@@ -82,8 +86,40 @@ void microProcessKeypress()
     switch(c)
     {
         case CTRL_KEY('q'):
+
+            // Clears screen on exit
+            write(STDIN_FILENO, "\x1b[2J", 4);
+            write(STDIN_FILENO, "\x1b[H", 3);
+            
             exit(0);
             break;
+    }
+}
+
+void microRefreshScreen()
+{
+    // 4 = writing 4 bytes
+    // first byte = \x1b = escape character (27 ASCII decimal)
+    // writing an escape sequence to the terminal; escape sequences
+    // start with the escape character (27), along with '['
+    // J stands for the "J command" aka the Erase In Display 
+    // found in the VT100 (https://vt100.net/docs/vt100-ug/chapter3.html#ED)
+
+    write(STDIN_FILENO, "\x1b[2J", 4);
+    write(STDIN_FILENO, "\x1b[H", 3);
+
+    microDrawRows();
+
+    write(STDIN_FILENO, "\x1b[H", 3);
+    
+}
+
+void microDrawRows()
+{
+    int r;
+    for (r = 0; r < 36; ++r)
+    {
+        write(STDIN_FILENO, "~\r\n", 3);
     }
 }
 
@@ -92,19 +128,8 @@ int main()
     enableRawInputMode();
     while (1)
     {
-        char c = '\0';
-        if (read(STDIN_FILENO, &c, 1) == -1 && errno != EAGAIN)
-            die("read");
-        if (iscntrl(c))
-        {
-            printf("%d\r\n", c);
-        }
-        else
-        {
-            printf("%d ('%c')\r\n", c, c);
-        }
-        if (c == CTRL_KEY('q'))
-            break;
+        microRefreshScreen();
+        microProcessKeypress();
     }
     return 0;
 }

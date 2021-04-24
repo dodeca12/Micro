@@ -8,5 +8,7 @@ void disableRawInputMode();
 void enableRawInputMode();
 char microReadKey();
 void microProcessKeypress();
+void microRefreshScreen();
+void microDrawRows();
 
 #endif // MICRO_H_

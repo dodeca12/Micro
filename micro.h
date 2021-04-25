@@ -5,11 +5,13 @@
 #define APPEND_BUFFER_INIT {NULL, 0}
 #define MICRO_VERSION "0.0.1"
 
+struct editorConfig microConfig;
+
 struct editorConfig
 {
     struct termios original_termios;
-    int screenRows;
-    int screenCols;
+    int screenRows, screenCols;
+    int cursorPosX, cursorPosY;
 };
 
 struct appendBuffer
@@ -18,12 +20,23 @@ struct appendBuffer
     int len;
 };
 
-struct editorConfig microConfig;
+enum microKeyMap
+{
+    LEFT_ARROW = 121212,
+    RIGHT_ARROW,
+    UP_ARROW,
+    DOWN_ARROW,
+    PAGE_UP,
+    PAGE_DOWN,
+    HOME_KEY,
+    END_KEY,
+    DELETE_KEY
+};
 
 void die(const char *s);
 void disableRawInputMode();
 void enableRawInputMode();
-char microReadKey();
+int microReadKey();
 void microProcessKeypress();
 void microRefreshScreen();
 void microDrawRows();
@@ -32,5 +45,6 @@ void initializeMicro();
 int getCursorPosition(int *rows, int *cols);
 void appendBufferAppend(struct appendBuffer *ab, const char *s, int len);
 void appendBufferFree(struct appendBuffer *ab);
+void microMoveCursor(int key);
 
 #endif // MICRO_H_

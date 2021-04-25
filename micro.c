@@ -5,6 +5,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <sys/ioctl.h>
+#include <string.h>
 
 #include "micro.h"
 
@@ -168,25 +169,29 @@ void microRefreshScreen()
     // start with the escape character (27), along with '['
     // J stands for the "J command" aka the Erase In Display 
     // found in the VT100 (https://vt100.net/docs/vt100-ug/chapter3.html#ED)
+    struct appendBuffer ab = APPEND_BUFFER_INIT;
 
-    write(STDIN_FILENO, "\x1b[2J", 4);
-    write(STDIN_FILENO, "\x1b[H", 3);
+    appendBufferAppend(&ab, "\x1b[2J", 4);
+    appendBufferAppend(&ab, "\x1b[H", 3);
 
-    microDrawRows();
+    microDrawRows(&ab);
 
-    write(STDIN_FILENO, "\x1b[H", 3);
-    
+    appendBufferAppend(&ab, "\x1b[H", 3);
+
+    write(STDOUT_FILENO, ab.b, ab.len);
+
+    appendBufferFree(&ab);
 }
 
-void microDrawRows()
+void microDrawRows(struct appendBuffer *ab)
 {
     int r;
     for (r = 0; r < microConfig.screenRows; ++r)
     {
-        write(STDOUT_FILENO, "~", 1);
+        appendBufferAppend(ab, "~", 1);
 
         if(r < microConfig.screenRows -1)
-            write(STDOUT_FILENO, "\r\n", 2);
+            appendBufferAppend(ab, "\r\n", 2);
     }
 }
 
@@ -194,6 +199,22 @@ void initializeMicro()
 {
     if(getTerminalWindowSize(&microConfig.screenRows, &microConfig.screenCols) == -1)
         die("getTerminalWindowSize");
+}
+
+void appendBufferAppend(struct appendBuffer *ab, const char *s, int len)
+{
+    char *new = realloc(ab->b, ab->len + len);
+
+    if(new == NULL)
+        return;
+    memcpy(&new[ab->len], s, len);
+    ab->b = new;
+    ab->len += len;
+}
+
+void appendBufferFree(struct appendBuffer *ab)
+{
+    free(ab->b);
 }
 
 int main()

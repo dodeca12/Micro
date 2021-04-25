@@ -1,3 +1,7 @@
+#define _DEFAULT_SOURCE
+#define _BSD_SOURCE
+#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <termio.h>
@@ -6,6 +10,7 @@
 #include <errno.h>
 #include <sys/ioctl.h>
 #include <string.h>
+#include <sys/types.h>
 
 #include "micro.h"
 
@@ -281,32 +286,40 @@ void microRefreshScreen()
 
 void microDrawRows(struct appendBuffer *ab)
 {
-    int r;
-    for (r = 0; r < microConfig.screenRows; ++r)
-    {
-        // appendBufferAppend(ab, "~", 1);
 
-        if (r == microConfig.screenRows / 3)
+    for (int r = 0; r < microConfig.screenRows; ++r)
+    {
+        if (r >= microConfig.numRows)
         {
-            char welcome[80];
-            int welcomeLen = snprintf(welcome, sizeof(welcome),
-                                      "Micro Editor -- Version %s", MICRO_VERSION);
-            if (welcomeLen > microConfig.screenCols)
-                welcomeLen = microConfig.screenCols;
-            int padding = (microConfig.screenCols - welcomeLen) / 2;
-            if (padding)
+            if (microConfig.numRows == 0 && r == microConfig.screenRows / 3)
+            {
+                char welcome[80];
+                int welcomeLen = snprintf(welcome, sizeof(welcome),
+                                          "Micro Editor -- Version %s", MICRO_VERSION);
+                if (welcomeLen > microConfig.screenCols)
+                    welcomeLen = microConfig.screenCols;
+                int padding = (microConfig.screenCols - welcomeLen) / 2;
+                if (padding)
+                {
+                    appendBufferAppend(ab, "~", 1);
+                    --padding;
+                }
+                while (--padding)
+                    appendBufferAppend(ab, " ", 1);
+
+                appendBufferAppend(ab, welcome, welcomeLen);
+            }
+            else
             {
                 appendBufferAppend(ab, "~", 1);
-                --padding;
             }
-            while (--padding)
-                appendBufferAppend(ab, " ", 1);
-
-            appendBufferAppend(ab, welcome, welcomeLen);
         }
         else
         {
-            appendBufferAppend(ab, "~", 1);
+            int len = microConfig.row.size;
+            if (len > microConfig.screenCols)
+                len = microConfig.screenCols;
+            appendBufferAppend(ab, microConfig.row.chars, len);
         }
 
         appendBufferAppend(ab, "\x1b[K", 3);
@@ -318,7 +331,8 @@ void microDrawRows(struct appendBuffer *ab)
 
 void initializeMicro()
 {
-    microConfig.cursorPosX = microConfig.cursorPosY = 0;
+    microConfig.cursorPosX = microConfig.cursorPosY = microConfig.numRows = 0;
+
     if (getTerminalWindowSize(&microConfig.screenRows, &microConfig.screenCols) == -1)
         die("getTerminalWindowSize");
 }
@@ -370,11 +384,40 @@ void microMoveCursor(int key)
     }
 }
 
-int main()
+void microOpen(char *filename)
+{
+    FILE *fp = fopen(filename, "r");
+    if (!fp)
+        die("fopen");
+
+    char *line = NULL;
+    size_t lineCapacity = 0;
+    ssize_t lineLen;
+    lineLen = getline(&line, &lineCapacity, fp);
+    if (lineLen != -1)
+    {
+        while(lineLen > 0 && (line[lineLen -1] == '\n' || line[lineLen -1 ] == '\r'))
+            --lineLen;
+            
+        microConfig.row.size = lineLen;
+        microConfig.row.chars = malloc(lineLen + 1);
+        memcpy(microConfig.row.chars, line, lineLen);
+        microConfig.row.chars[lineLen] = '\0';
+        microConfig.numRows = 1;
+    }
+    free(line);
+    fclose(fp);
+}
+
+int main(int argc, char *argv[])
 {
     enableRawInputMode();
     initializeMicro();
 
+    if(argc >=2)
+    {
+    microOpen(argv[1]);
+    }
     while (1)
     {
         microRefreshScreen();

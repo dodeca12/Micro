@@ -4,10 +4,10 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <errno.h>
+#include <sys/ioctl.h>
 
 #include "micro.h"
 
-struct termios original_termios;
 
 void die(const char *s)
 {
@@ -21,13 +21,13 @@ void die(const char *s)
 
 void disableRawInputMode()
 {
-    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &original_termios) == -1)
+    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &microConfig.original_termios) == -1)
         die("tcsetattr");
 }
 
 void enableRawInputMode()
 {
-    if (tcgetattr(STDIN_FILENO, &original_termios) == -1)
+    if (tcgetattr(STDIN_FILENO, &microConfig.original_termios) == -1)
         die("tcsetattr");
 
     atexit(disableRawInputMode);
@@ -51,7 +51,7 @@ void enableRawInputMode()
     // ISIG = Enable signals
     // IEXTEN = Enable non-POSIX special characters
 
-    struct termios raw = original_termios;
+    struct termios raw = microConfig.original_termios;
     raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
     // Turning the above flags off are not necessary for modern usage, but it is done to keep with the tradition when enabling "raw mode"
     raw.c_oflag &= ~(OPOST);
@@ -67,6 +67,25 @@ void enableRawInputMode()
         die("tcsetattr");
 }
 
+int getTerminalWindowSize(int *rows, int *cols)
+{
+    struct winsize wsize;
+
+    if(ioctl(STDIN_FILENO, TIOCGWINSZ, &wsize) == -1 || wsize.ws_col == 0)
+    {
+        if(write(STDOUT_FILENO, "\x1b[999C\x1b[999B", 12) != 12)
+            return -1;
+        // microReadKey();
+        return getCursorPosition(rows, cols);
+    }
+    else
+    {
+        *rows = wsize.ws_row;
+        *cols = wsize.ws_col;
+        return 0;
+    }
+}
+
 char microReadKey()
 {
     int nread;
@@ -77,6 +96,51 @@ char microReadKey()
             die("read");
     }
     return c;
+}
+
+int getCursorPosition(int *rows, int *cols)
+{
+
+    char buf[32];
+    unsigned int i = 0;
+
+    if(write(STDOUT_FILENO, "\x1b[6n", 4) != 4)
+        return -1;
+    
+    // Commented code below not required
+    // printf("\r\n");
+    // char c;
+    // while(read(STDIN_FILENO, &c, 1) == 1)
+    // {
+    //     if(iscntrl(c))
+    //     {
+    //         printf("%d\r\n", c);
+    //     }
+    //     else
+    //     {
+    //         printf("%d ('%c')\r\n", c, c);
+    //     }
+    // }
+
+    while(i < sizeof(buf) - 1)
+    {
+        if(read(STDIN_FILENO, &buf[i], 1) != 1)
+            break;
+        if(buf[i] == 'R')
+            break;
+        ++i;
+    }
+    buf[i] = '\0';
+
+    // printf("\r\n&buf[1]: '%s'\r\n", &buf[1]);
+    if(buf[0] != '\x1b' || buf[1] != '[')
+        return -1;
+    if (sscanf(&buf[2], "%d;%d", rows, cols) !=2)
+        return -1;
+
+    // microReadKey();
+
+    return -1;
 }
 
 void microProcessKeypress()
@@ -117,15 +181,23 @@ void microRefreshScreen()
 void microDrawRows()
 {
     int r;
-    for (r = 0; r < 36; ++r)
+    for (r = 0; r < microConfig.screenCols; ++r)
     {
         write(STDIN_FILENO, "~\r\n", 3);
     }
 }
 
+void initializeMicro()
+{
+    if(getTerminalWindowSize(&microConfig.screenRows, &microConfig.screenCols) == -1)
+        die("getTerminalWindowSize");
+}
+
 int main()
 {
     enableRawInputMode();
+    initializeMicro();
+
     while (1)
     {
         microRefreshScreen();

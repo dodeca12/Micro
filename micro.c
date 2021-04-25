@@ -71,7 +71,7 @@ int getTerminalWindowSize(int *rows, int *cols)
 {
     struct winsize wsize;
 
-    if(ioctl(STDIN_FILENO, TIOCGWINSZ, &wsize) == -1 || wsize.ws_col == 0)
+    if(ioctl(STDOUT_FILENO, TIOCGWINSZ, &wsize) == -1 || wsize.ws_col == 0)
     {
         if(write(STDOUT_FILENO, "\x1b[999C\x1b[999B", 12) != 12)
             return -1;
@@ -140,7 +140,7 @@ int getCursorPosition(int *rows, int *cols)
 
     // microReadKey();
 
-    return -1;
+    return 0;
 }
 
 void microProcessKeypress()

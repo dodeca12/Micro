@@ -135,7 +135,7 @@ int getCursorPosition(int *rows, int *cols)
     // printf("\r\n&buf[1]: '%s'\r\n", &buf[1]);
     if(buf[0] != '\x1b' || buf[1] != '[')
         return -1;
-    if (sscanf(&buf[2], "%d;%d", rows, cols) !=2)
+    if (sscanf(&buf[2], "%d;%d", rows, cols) != 2)
         return -1;
 
     // microReadKey();
@@ -181,9 +181,12 @@ void microRefreshScreen()
 void microDrawRows()
 {
     int r;
-    for (r = 0; r < microConfig.screenCols; ++r)
+    for (r = 0; r < microConfig.screenRows; ++r)
     {
-        write(STDIN_FILENO, "~\r\n", 3);
+        write(STDOUT_FILENO, "~", 1);
+
+        if(r < microConfig.screenRows -1)
+            write(STDOUT_FILENO, "\r\n", 2);
     }
 }
 

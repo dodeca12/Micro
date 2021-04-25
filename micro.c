@@ -171,12 +171,14 @@ void microRefreshScreen()
     // found in the VT100 (https://vt100.net/docs/vt100-ug/chapter3.html#ED)
     struct appendBuffer ab = APPEND_BUFFER_INIT;
 
+    appendBufferAppend(&ab, "\x1b[?25l", 6);
     appendBufferAppend(&ab, "\x1b[2J", 4);
     appendBufferAppend(&ab, "\x1b[H", 3);
 
     microDrawRows(&ab);
 
     appendBufferAppend(&ab, "\x1b[H", 3);
+    appendBufferAppend(&ab, "\x1b[?25h", 6);
 
     write(STDOUT_FILENO, ab.b, ab.len);
 

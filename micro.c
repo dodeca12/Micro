@@ -316,10 +316,10 @@ void microDrawRows(struct appendBuffer *ab)
         }
         else
         {
-            int len = microConfig.row.size;
+            int len = microConfig.row[r].size;
             if (len > microConfig.screenCols)
                 len = microConfig.screenCols;
-            appendBufferAppend(ab, microConfig.row.chars, len);
+            appendBufferAppend(ab, microConfig.row[r].chars, len);
         }
 
         appendBufferAppend(ab, "\x1b[K", 3);
@@ -332,6 +332,7 @@ void microDrawRows(struct appendBuffer *ab)
 void initializeMicro()
 {
     microConfig.cursorPosX = microConfig.cursorPosY = microConfig.numRows = 0;
+    microConfig.row = NULL;
 
     if (getTerminalWindowSize(&microConfig.screenRows, &microConfig.screenCols) == -1)
         die("getTerminalWindowSize");
@@ -384,6 +385,22 @@ void microMoveCursor(int key)
     }
 }
 
+void microAppendRow(char *s, size_t len)
+{
+    // microConfig.row.size = len;
+    // microConfig.row.chars = malloc(len + 1);
+    // memcpy(microConfig.row.chars, s, len);
+    // microConfig.row.chars[len] = '\0';
+    // microConfig.numRows = 1;
+    microConfig.row = realloc(microConfig.row, sizeof(microRow) * (microConfig.numRows + 1));
+    int at = microConfig.numRows;
+    microConfig.row[at].size = len;
+    microConfig.row[at].chars = malloc(len + 1);
+    memcpy(microConfig.row[at].chars, s, len);
+    microConfig.row[at].chars[len] = '\0';
+    ++(microConfig.numRows);
+}
+
 void microOpen(char *filename)
 {
     FILE *fp = fopen(filename, "r");
@@ -393,17 +410,18 @@ void microOpen(char *filename)
     char *line = NULL;
     size_t lineCapacity = 0;
     ssize_t lineLen;
-    lineLen = getline(&line, &lineCapacity, fp);
-    if (lineLen != -1)
+    while ((lineLen = getline(&line, &lineCapacity, fp)) != -1)
     {
-        while(lineLen > 0 && (line[lineLen -1] == '\n' || line[lineLen -1 ] == '\r'))
+
+        while (lineLen > 0 && (line[lineLen - 1] == '\n' || line[lineLen - 1] == '\r'))
             --lineLen;
-            
-        microConfig.row.size = lineLen;
-        microConfig.row.chars = malloc(lineLen + 1);
-        memcpy(microConfig.row.chars, line, lineLen);
-        microConfig.row.chars[lineLen] = '\0';
-        microConfig.numRows = 1;
+
+        // microConfig.row.size = lineLen;
+        // microConfig.row.chars = malloc(lineLen + 1);
+        // memcpy(microConfig.row.chars, line, lineLen);
+        // microConfig.row.chars[lineLen] = '\0';
+        // microConfig.numRows = 1;
+        microAppendRow(line, lineLen);
     }
     free(line);
     fclose(fp);
@@ -414,9 +432,9 @@ int main(int argc, char *argv[])
     enableRawInputMode();
     initializeMicro();
 
-    if(argc >=2)
+    if (argc >= 2)
     {
-    microOpen(argv[1]);
+        microOpen(argv[1]);
     }
     while (1)
     {

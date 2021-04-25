@@ -20,7 +20,7 @@ struct editorConfig
     struct termios original_termios;
     int screenRows, screenCols;
     int cursorPosX, cursorPosY;
-    microRow row;
+    microRow *row;
     int numRows;
 };
 
@@ -57,6 +57,7 @@ void appendBufferAppend(struct appendBuffer *ab, const char *s, int len);
 void appendBufferFree(struct appendBuffer *ab);
 void microMoveCursor(int key);
 void microOpen(char *filename);
+void microAppendRow(char *s, size_t len);
 
 #endif // MICRO_H_
 

@@ -3,6 +3,7 @@
 
 #define CTRL_KEY(k) ((k)&0x1f)
 #define APPEND_BUFFER_INIT {NULL, 0}
+#define MICRO_VERSION "0.0.1"
 
 struct editorConfig
 {

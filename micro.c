@@ -172,7 +172,7 @@ void microRefreshScreen()
     struct appendBuffer ab = APPEND_BUFFER_INIT;
 
     appendBufferAppend(&ab, "\x1b[?25l", 6);
-    appendBufferAppend(&ab, "\x1b[2J", 4);
+    // appendBufferAppend(&ab, "\x1b[2J", 4);
     appendBufferAppend(&ab, "\x1b[H", 3);
 
     microDrawRows(&ab);
@@ -190,7 +190,31 @@ void microDrawRows(struct appendBuffer *ab)
     int r;
     for (r = 0; r < microConfig.screenRows; ++r)
     {
-        appendBufferAppend(ab, "~", 1);
+        // appendBufferAppend(ab, "~", 1);
+
+        if(r == microConfig.screenRows / 3)
+        {
+            char welcome[80];
+            int welcomeLen = snprintf(welcome, sizeof(welcome),
+                                      "Micro Editor -- Version %s", MICRO_VERSION);
+            if(welcomeLen > microConfig.screenCols)
+                welcomeLen = microConfig.screenCols;
+            int padding = (microConfig.screenCols - welcomeLen) / 2;
+            if(padding)
+            {
+                appendBufferAppend(ab, "~", 1);
+                --padding;
+            }
+            while(--padding)
+                appendBufferAppend(ab, " ", 1);
+
+            appendBufferAppend(ab, welcome, welcomeLen);
+        }
+        else{
+            appendBufferAppend(ab, "~", 1);
+        }
+
+        appendBufferAppend(ab, "\x1b[K", 3);
 
         if(r < microConfig.screenRows -1)
             appendBufferAppend(ab, "\r\n", 2);

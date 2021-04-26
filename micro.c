@@ -259,6 +259,9 @@ void microProcessKeypress()
 
 void microRefreshScreen()
 {
+
+    microScroll();
+
     // 4 = writing 4 bytes
     // first byte = \x1b = escape character (27 ASCII decimal)
     // writing an escape sequence to the terminal; escape sequences
@@ -289,7 +292,8 @@ void microDrawRows(struct appendBuffer *ab)
 
     for (int r = 0; r < microConfig.screenRows; ++r)
     {
-        if (r >= microConfig.numRows)
+        int fileRow = r + microConfig.rowOffset;
+        if (fileRow >= microConfig.numRows)
         {
             if (microConfig.numRows == 0 && r == microConfig.screenRows / 3)
             {
@@ -316,10 +320,10 @@ void microDrawRows(struct appendBuffer *ab)
         }
         else
         {
-            int len = microConfig.row[r].size;
+            int len = microConfig.row[fileRow].size;
             if (len > microConfig.screenCols)
                 len = microConfig.screenCols;
-            appendBufferAppend(ab, microConfig.row[r].chars, len);
+            appendBufferAppend(ab, microConfig.row[fileRow].chars, len);
         }
 
         appendBufferAppend(ab, "\x1b[K", 3);
@@ -331,7 +335,7 @@ void microDrawRows(struct appendBuffer *ab)
 
 void initializeMicro()
 {
-    microConfig.cursorPosX = microConfig.cursorPosY = microConfig.numRows = 0;
+    microConfig.cursorPosX = microConfig.cursorPosY = microConfig.numRows = microConfig.rowOffset = 0;
     microConfig.row = NULL;
 
     if (getTerminalWindowSize(&microConfig.screenRows, &microConfig.screenCols) == -1)
@@ -377,11 +381,23 @@ void microMoveCursor(int key)
         }
         break;
     case DOWN_ARROW:
-        if (microConfig.cursorPosY != microConfig.screenRows - 1)
+        if (microConfig.cursorPosY < microConfig.numRows)
         {
             ++(microConfig.cursorPosY);
         }
         break;
+    }
+}
+
+void microScroll()
+{
+    if(microConfig.cursorPosY < microConfig.rowOffset)
+    {
+        microConfig.rowOffset = microConfig.cursorPosY;
+    }
+    if(microConfig.cursorPosY >= microConfig.rowOffset + microConfig.screenRows)
+    {
+        microConfig.rowOffset = microConfig.cursorPosY - microConfig.screenRows + 1;
     }
 }
 

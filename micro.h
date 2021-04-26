@@ -22,6 +22,7 @@ struct editorConfig
     int cursorPosX, cursorPosY;
     microRow *row;
     int numRows;
+    int rowOffset;
 };
 
 struct appendBuffer
@@ -58,6 +59,8 @@ void appendBufferFree(struct appendBuffer *ab);
 void microMoveCursor(int key);
 void microOpen(char *filename);
 void microAppendRow(char *s, size_t len);
+void microScroll();
+
 
 #endif // MICRO_H_
 

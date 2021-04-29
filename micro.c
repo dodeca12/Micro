@@ -11,6 +11,8 @@
 #include <sys/ioctl.h>
 #include <string.h>
 #include <sys/types.h>
+#include <time.h>
+#include <stdarg.h>
 
 #include "micro.h"
 
@@ -60,6 +62,7 @@ void enableRawInputMode()
     raw.c_oflag &= ~(OPOST);
     raw.c_cflag |= (CS8);
     raw.c_lflag &= ~(ECHO | ICANON | ISIG | IEXTEN);
+    // raw.c_lflag &= ~(XOFF);
 
     // c_cc; where cc stands for "control characters"
     // VMIN, VTIME indices into c_cc field
@@ -275,6 +278,8 @@ void microRefreshScreen()
     appendBufferAppend(&ab, "\x1b[H", 3);
 
     microDrawRows(&ab);
+    microDrawStatusBar(&ab);
+    microDrawMessageBar(&ab);
 
     char buf[32];
     snprintf(buf, sizeof(buf), "\x1b[%d;%dH", (microConfig.cursorPosY - microConfig.rowOffset) + 1, (microConfig.renderPosX - microConfig.colOffset) + 1);
@@ -330,8 +335,8 @@ void microDrawRows(struct appendBuffer *ab)
 
         appendBufferAppend(ab, "\x1b[K", 3);
 
-        if (r < microConfig.screenRows - 1)
-            appendBufferAppend(ab, "\r\n", 2);
+        // if (r < microConfig.screenRows - 1)
+        appendBufferAppend(ab, "\r\n", 2);
     }
 }
 
@@ -339,9 +344,15 @@ void initializeMicro()
 {
     microConfig.cursorPosX = microConfig.cursorPosY = microConfig.numRows = microConfig.rowOffset = microConfig.colOffset = microConfig.renderPosX = 0;
     microConfig.row = NULL;
+    microConfig.fileName = NULL;
+
+    microConfig.statusMessage[0] = '\0';
+    microConfig.statusMessage_time = 0;
 
     if (getTerminalWindowSize(&microConfig.screenRows, &microConfig.screenCols) == -1)
         die("getTerminalWindowSize");
+
+    microConfig.screenRows -= 2;
 }
 
 void appendBufferAppend(struct appendBuffer *ab, const char *s, int len)
@@ -413,9 +424,9 @@ void microScroll()
 {
     microConfig.renderPosX = microConfig.cursorPosX;
 
-    if(microConfig.cursorPosY < microConfig.numRows)
+    if (microConfig.cursorPosY < microConfig.numRows)
         microConfig.renderPosX = microRowCursorPosXToRenderPosX(&microConfig.row[microConfig.cursorPosY], microConfig.cursorPosX);
-        
+
     if (microConfig.cursorPosY < microConfig.rowOffset)
     {
         microConfig.rowOffset = microConfig.cursorPosY;
@@ -492,6 +503,9 @@ void microUpdateRow(microRow *row)
 
 void microOpen(char *filename)
 {
+    free(microConfig.fileName);
+    microConfig.fileName = strdup(filename);
+
     FILE *fp = fopen(filename, "r");
     if (!fp)
         die("fopen");
@@ -519,9 +533,9 @@ void microOpen(char *filename)
 int microRowCursorPosXToRenderPosX(microRow *row, int cursorPosX)
 {
     int renderPosX = 0;
-    for(int i = 0; i < cursorPosX; ++i)
+    for (int i = 0; i < cursorPosX; ++i)
     {
-        if(row->chars[i] == '\t')
+        if (row->chars[i] == '\t')
         {
             renderPosX += (MICRO_TAB_STOP - 1) - (renderPosX % MICRO_TAB_STOP);
         }
@@ -529,6 +543,57 @@ int microRowCursorPosXToRenderPosX(microRow *row, int cursorPosX)
     }
 
     return renderPosX;
+}
+
+void microDrawStatusBar(struct appendBuffer *ab)
+{
+    appendBufferAppend(ab, "\x1b[7m", 4);
+    char fileNameStatus[80], rstatus[80];
+
+    int len = snprintf(fileNameStatus, sizeof(fileNameStatus), "%.24s - %d lines",
+                       microConfig.fileName ? microConfig.fileName : "[No file name found]", microConfig.numRows);
+    int rlen = snprintf(rstatus, sizeof(rstatus), "%d/%d", microConfig.cursorPosY + 1, microConfig.numRows);
+
+    if (len > microConfig.screenCols)
+        len = microConfig.screenCols;
+
+    appendBufferAppend(ab, fileNameStatus, len);
+
+    while (len < microConfig.screenCols)
+    {
+
+        if (microConfig.screenCols - len == rlen)
+        {
+            appendBufferAppend(ab, rstatus, rlen);
+            break;
+        }
+        else
+        {
+            appendBufferAppend(ab, " ", 1);
+            ++len;
+        }
+    }
+    appendBufferAppend(ab, "\x1b[m", 3);
+    appendBufferAppend(ab, "\r\n", 2);
+}
+
+void microSetStatusMessage(const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(microConfig.statusMessage, sizeof(microConfig.statusMessage), fmt, ap);
+    va_end(ap);
+    microConfig.statusMessage_time = time(NULL);
+}
+
+void microDrawMessageBar(struct appendBuffer *ab)
+{
+    appendBufferAppend(ab, "\x1b[K", 3);
+    int messageLen = strlen(microConfig.statusMessage);
+    if (messageLen > microConfig.screenCols)
+        messageLen = microConfig.screenCols;
+    if (messageLen && time(NULL) - microConfig.statusMessage_time < 5)
+        appendBufferAppend(ab, microConfig.statusMessage, messageLen);
 }
 
 int main(int argc, char *argv[])
@@ -540,6 +605,9 @@ int main(int argc, char *argv[])
     {
         microOpen(argv[1]);
     }
+
+    microSetStatusMessage("EXIT: Ctrl-q");
+
     while (1)
     {
         microRefreshScreen();

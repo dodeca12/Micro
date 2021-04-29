@@ -9,7 +9,7 @@
 #define MICRO_TAB_STOP 8
 
 
-struct editorConfig microConfig;
+
 
 typedef struct microRow
 {
@@ -26,9 +26,12 @@ struct editorConfig
     int cursorPosX, cursorPosY;
     int renderPosX;
     microRow *row;
+    char *fileName;
     int numRows;
     int rowOffset, colOffset;
-};
+    char statusMessage[80];
+    time_t statusMessage_time;
+} microConfig;
 
 struct appendBuffer
 {
@@ -67,6 +70,9 @@ void microAppendRow(char *s, size_t len);
 void microScroll();
 void microUpdateRow(microRow *row);
 int microRowCursorPosXToRenderPosX(microRow *row, int cursorPosX);
+void microDrawStatusBar(struct appendBuffer *ab);
+void microSetStatusMessage(const char *fmt, ...);
+void microDrawMessageBar(struct appendBuffer *ab);
 
 #endif // MICRO_H_
 

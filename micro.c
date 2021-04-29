@@ -277,7 +277,7 @@ void microRefreshScreen()
     microDrawRows(&ab);
 
     char buf[32];
-    snprintf(buf, sizeof(buf), "\x1b[%d;%dH", (microConfig.cursorPosY - microConfig.rowOffset) + 1, (microConfig.cursorPosX - microConfig.colOffset) + 1);
+    snprintf(buf, sizeof(buf), "\x1b[%d;%dH", (microConfig.cursorPosY - microConfig.rowOffset) + 1, (microConfig.renderPosX - microConfig.colOffset) + 1);
     appendBufferAppend(&ab, buf, strlen(buf));
 
     appendBufferAppend(&ab, "\x1b[?25h", 6);
@@ -337,7 +337,7 @@ void microDrawRows(struct appendBuffer *ab)
 
 void initializeMicro()
 {
-    microConfig.cursorPosX = microConfig.cursorPosY = microConfig.numRows = microConfig.rowOffset = microConfig.colOffset = 0;
+    microConfig.cursorPosX = microConfig.cursorPosY = microConfig.numRows = microConfig.rowOffset = microConfig.colOffset = microConfig.renderPosX = 0;
     microConfig.row = NULL;
 
     if (getTerminalWindowSize(&microConfig.screenRows, &microConfig.screenCols) == -1)
@@ -370,18 +370,18 @@ void microMoveCursor(int key)
         {
             --(microConfig.cursorPosX);
         }
-        else if(microConfig.cursorPosY > 0)
+        else if (microConfig.cursorPosY > 0)
         {
             --(microConfig.cursorPosY);
             microConfig.cursorPosX = microConfig.row[microConfig.cursorPosY].size;
         }
         break;
     case RIGHT_ARROW:
-        if(row && microConfig.cursorPosX < row->size)
+        if (row && microConfig.cursorPosX < row->size)
         {
-        ++(microConfig.cursorPosX);
+            ++(microConfig.cursorPosX);
         }
-        else if(row && microConfig.cursorPosX == row->size)
+        else if (row && microConfig.cursorPosX == row->size)
         {
             ++(microConfig.cursorPosY);
             microConfig.cursorPosX = 0;
@@ -403,7 +403,7 @@ void microMoveCursor(int key)
 
     row = (microConfig.cursorPosY >= microConfig.numRows) ? NULL : &microConfig.row[microConfig.cursorPosY];
     int rowLen = row ? row->size : 0;
-    if(microConfig.cursorPosX > rowLen)
+    if (microConfig.cursorPosX > rowLen)
     {
         microConfig.cursorPosX = rowLen;
     }
@@ -411,6 +411,11 @@ void microMoveCursor(int key)
 
 void microScroll()
 {
+    microConfig.renderPosX = microConfig.cursorPosX;
+
+    if(microConfig.cursorPosY < microConfig.numRows)
+        microConfig.renderPosX = microRowCursorPosXToRenderPosX(&microConfig.row[microConfig.cursorPosY], microConfig.cursorPosX);
+        
     if (microConfig.cursorPosY < microConfig.rowOffset)
     {
         microConfig.rowOffset = microConfig.cursorPosY;
@@ -419,13 +424,13 @@ void microScroll()
     {
         microConfig.rowOffset = microConfig.cursorPosY - microConfig.screenRows + 1;
     }
-    if (microConfig.cursorPosX < microConfig.colOffset)
+    if (microConfig.renderPosX < microConfig.colOffset)
     {
-        microConfig.colOffset = microConfig.cursorPosX;
+        microConfig.colOffset = microConfig.renderPosX;
     }
-    if (microConfig.cursorPosX >= microConfig.colOffset + microConfig.screenCols)
+    if (microConfig.renderPosX >= microConfig.colOffset + microConfig.screenCols)
     {
-        microConfig.colOffset = microConfig.cursorPosX - microConfig.screenCols + 1;
+        microConfig.colOffset = microConfig.renderPosX - microConfig.screenCols + 1;
     }
 }
 
@@ -454,32 +459,33 @@ void microAppendRow(char *s, size_t len)
 void microUpdateRow(microRow *row)
 {
     int tabs = 0;
-    for (int i = 0; i < row->size;++i)
+    for (int i = 0; i < row->size; ++i)
     {
-        if(row->chars[i] == '\t')
+        if (row->chars[i] == '\t')
             ++tabs;
     }
 
-
     free(row->render);
-    row->render = malloc(row->size + tabs * 7 + 1);
+    row->render = malloc(row->size + tabs * (MICRO_TAB_STOP - 1) + 1);
 
     int idx = 0;
     for (int i = 0; i < row->size; ++i)
     {
-        if(row->chars[i] == '\t'){
+        if (row->chars[i] == '\t')
+        {
             row->render[++idx] = ' ';
 
-            while(idx %8 !=0)
+            while (idx % MICRO_TAB_STOP != 0)
                 row->render[++idx] = ' ';
 
-        // row->render[++idx] = row->chars[i];
+            // row->render[++idx] = row->chars[i];
         }
-        else{
+        else
+        {
             row->render[++idx] = row->chars[i];
         }
     }
-    
+
     row->render[idx] = '\0';
     row->rsize = idx;
 }
@@ -508,6 +514,21 @@ void microOpen(char *filename)
     }
     free(line);
     fclose(fp);
+}
+
+int microRowCursorPosXToRenderPosX(microRow *row, int cursorPosX)
+{
+    int renderPosX = 0;
+    for(int i = 0; i < cursorPosX; ++i)
+    {
+        if(row->chars[i] == '\t')
+        {
+            renderPosX += (MICRO_TAB_STOP - 1) - (renderPosX % MICRO_TAB_STOP);
+        }
+        ++renderPosX;
+    }
+
+    return renderPosX;
 }
 
 int main(int argc, char *argv[])

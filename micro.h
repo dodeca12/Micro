@@ -6,6 +6,8 @@
 #define CTRL_KEY(k) ((k)&0x1f)
 #define APPEND_BUFFER_INIT {NULL, 0}
 #define MICRO_VERSION "0.0.1"
+#define MICRO_TAB_STOP 8
+
 
 struct editorConfig microConfig;
 
@@ -22,6 +24,7 @@ struct editorConfig
     struct termios original_termios;
     int screenRows, screenCols;
     int cursorPosX, cursorPosY;
+    int renderPosX;
     microRow *row;
     int numRows;
     int rowOffset, colOffset;
@@ -63,6 +66,7 @@ void microOpen(char *filename);
 void microAppendRow(char *s, size_t len);
 void microScroll();
 void microUpdateRow(microRow *row);
+int microRowCursorPosXToRenderPosX(microRow *row, int cursorPosX);
 
 #endif // MICRO_H_
 

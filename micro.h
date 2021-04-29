@@ -13,6 +13,8 @@ typedef struct microRow
 {
     char *chars;
     int size;
+    int rsize;
+    char *render;
 } microRow;
 
 struct editorConfig
@@ -22,7 +24,7 @@ struct editorConfig
     int cursorPosX, cursorPosY;
     microRow *row;
     int numRows;
-    int rowOffset;
+    int rowOffset, colOffset;
 };
 
 struct appendBuffer
@@ -60,7 +62,7 @@ void microMoveCursor(int key);
 void microOpen(char *filename);
 void microAppendRow(char *s, size_t len);
 void microScroll();
-
+void microUpdateRow(microRow *row);
 
 #endif // MICRO_H_
 

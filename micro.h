@@ -7,6 +7,7 @@
 #define APPEND_BUFFER_INIT {NULL, 0}
 #define MICRO_VERSION "0.0.1"
 #define MICRO_TAB_STOP 8
+#define MICRO_FORCE_QUIT 2
 
 
 
@@ -31,6 +32,7 @@ struct editorConfig
     int rowOffset, colOffset;
     char statusMessage[80];
     time_t statusMessage_time;
+    int dirtyBuffer;
 } microConfig;
 
 struct appendBuffer
@@ -41,6 +43,7 @@ struct appendBuffer
 
 enum microKeyMap
 {
+    BACKSPACE = 127,
     LEFT_ARROW = 121212,
     RIGHT_ARROW,
     UP_ARROW,
@@ -75,7 +78,8 @@ void microSetStatusMessage(const char *fmt, ...);
 void microDrawMessageBar(struct appendBuffer *ab);
 void microRowInsertCharacter(microRow *row, int at, int c);
 void microInsertCharacter(int c);
-
+char *microRowsToString(int *bufferLen);
+void microSave();
 
 #endif // MICRO_H_
 

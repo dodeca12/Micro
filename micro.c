@@ -13,6 +13,7 @@
 #include <sys/types.h>
 #include <time.h>
 #include <stdarg.h>
+#include <fcntl.h>
 
 #include "micro.h"
 
@@ -220,17 +221,34 @@ int getCursorPosition(int *rows, int *cols)
 
 void microProcessKeypress()
 {
+    static int forceQuitTimes = MICRO_FORCE_QUIT;
+
     int c = microReadKey();
 
     switch (c)
     {
+
+    case '\r':
+        break;
+
     case CTRL_KEY('q'):
 
+        if(microConfig.dirtyBuffer)
+        {
+            microSetStatusMessage("ALERT! Current file has unsaved changes. ", "Press Ctrl-q again to force quit", forceQuitTimes);
+            --forceQuitTimes;
+            return;
+        }
+        
         // Clears screen on exit
         write(STDIN_FILENO, "\x1b[2J", 4);
         write(STDIN_FILENO, "\x1b[H", 3);
 
         exit(0);
+        break;
+
+    case CTRL_KEY('s'):
+        microSave();
         break;
 
     case LEFT_ARROW:
@@ -258,10 +276,37 @@ void microProcessKeypress()
         microConfig.cursorPosX = microConfig.screenCols - 1;
         break;
 
-    default:
-        microInsertCharacter(c);
+    case CTRL_KEY('l'):
+    case '\x1b':
         break;
+
+    default:
+    microInsertCharacter(c);
+    break;
     }
+
+    forceQuitTimes = MICRO_FORCE_QUIT;
+}
+
+char *microRowsToString(int *bufferLen)
+{
+    int totalLen = 0;
+    for(int i = 0; i < microConfig.numRows; ++i)
+    {
+        totalLen += microConfig.row[i].size + 1;
+    }
+    *bufferLen = totalLen;
+
+    char *buffer = malloc(totalLen);
+    char *paragraph = buffer;
+    for (int i = 0; i < microConfig.numRows; ++i)
+    {
+        memcpy(paragraph, microConfig.row[i].chars, microConfig.row[i].size);
+        paragraph += microConfig.row[i].size;
+        *paragraph = '\n';
+        ++paragraph;
+    }
+    return buffer;
 }
 
 void microRefreshScreen()
@@ -346,7 +391,7 @@ void microDrawRows(struct appendBuffer *ab)
 
 void initializeMicro()
 {
-    microConfig.cursorPosX = microConfig.cursorPosY = microConfig.numRows = microConfig.rowOffset = microConfig.colOffset = microConfig.renderPosX = 0;
+    microConfig.cursorPosX = microConfig.cursorPosY = microConfig.numRows = microConfig.rowOffset = microConfig.colOffset = microConfig.renderPosX = microConfig.dirtyBuffer = 0;
     microConfig.row = NULL;
     microConfig.fileName = NULL;
 
@@ -424,6 +469,36 @@ void microMoveCursor(int key)
     }
 }
 
+void microSave()
+{
+    if(microConfig.fileName == NULL)
+        return;
+
+    int len;
+    char *buffer = microRowsToString(&len);
+
+    int fd = open(microConfig.fileName, O_RDWR | O_CREAT, 0644);
+
+    if(fd != -1)
+    {
+        if(ftruncate(fd, len) != -1)
+        {
+            if(write(fd, buffer, len) == len)
+            {
+                close(fd);
+                free(buffer);
+                microConfig.dirtyBuffer = 0;
+                microSetStatusMessage("%d bytes written", len);
+                return;
+            }
+        }
+        close(fd);
+    }
+
+    free(buffer);
+    microSetStatusMessage("Micro cannot save file! I/O Error: %s", strerror(errno));
+}
+
 void microScroll()
 {
     microConfig.renderPosX = microConfig.cursorPosX;
@@ -469,6 +544,7 @@ void microAppendRow(char *s, size_t len)
     microUpdateRow(&microConfig.row[at]);
 
     ++(microConfig.numRows);
+    ++(microConfig.dirtyBuffer);
 }
 
 void microUpdateRow(microRow *row)
@@ -532,6 +608,7 @@ void microOpen(char *filename)
     }
     free(line);
     fclose(fp);
+    microConfig.dirtyBuffer = 0;
 }
 
 int microRowCursorPosXToRenderPosX(microRow *row, int cursorPosX)
@@ -554,8 +631,8 @@ void microDrawStatusBar(struct appendBuffer *ab)
     appendBufferAppend(ab, "\x1b[7m", 4);
     char fileNameStatus[80], rstatus[80];
 
-    int len = snprintf(fileNameStatus, sizeof(fileNameStatus), "%.24s - %d lines",
-                       microConfig.fileName ? microConfig.fileName : "[No file name found]", microConfig.numRows);
+    int len = snprintf(fileNameStatus, sizeof(fileNameStatus), "%.24s - %d lines %s",
+                       microConfig.fileName ? microConfig.fileName : "[No filename]", microConfig.numRows, microConfig.dirtyBuffer ? "(modified)" : "");
     int rlen = snprintf(rstatus, sizeof(rstatus), "%d/%d", microConfig.cursorPosY + 1, microConfig.numRows);
 
     if (len > microConfig.screenCols)
@@ -619,6 +696,7 @@ void microInsertCharacter(int c)
 
     microRowInsertCharacter(&microConfig.row[microConfig.cursorPosY], microConfig.cursorPosX, c);
     ++(microConfig.cursorPosX);
+    ++(microConfig.dirtyBuffer);
 }
 
 int main(int argc, char *argv[])
@@ -631,7 +709,7 @@ int main(int argc, char *argv[])
         microOpen(argv[1]);
     }
 
-    microSetStatusMessage("EXIT: Ctrl-q");
+    microSetStatusMessage("To Exit: Ctrl-q | To Save: Ctrl-s");
 
     while (1)
     {

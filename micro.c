@@ -229,6 +229,7 @@ void microProcessKeypress()
     {
 
     case '\r':
+        microInsertNewLine();
         break;
 
     case CTRL_KEY('q'):
@@ -507,7 +508,14 @@ void microMoveCursor(int key)
 void microSave()
 {
     if (microConfig.fileName == NULL)
-        return;
+    {
+        microConfig.fileName = microPrompt("Save file as: %s (ESC to cancel save)");
+        if (microConfig.fileName == NULL)
+        {
+            microSetStatusMessage("Save cancelled");
+            return;
+        }
+    }
 
     int len;
     char *buffer = microRowsToString(&len);
@@ -590,15 +598,19 @@ void microDeleteCharacter()
     }
 }
 
-void microAppendRow(char *s, size_t len)
+void microInsertRow(int at, char *s, size_t len)
 {
-    // microConfig.row.size = len;
-    // microConfig.row.chars = malloc(len + 1);
-    // memcpy(microConfig.row.chars, s, len);
-    // microConfig.row.chars[len] = '\0';
-    // microConfig.numRows = 1;
+
+    if (at < 0 || at > microConfig.numRows)
+        return;
+
     microConfig.row = realloc(microConfig.row, sizeof(microRow) * (microConfig.numRows + 1));
-    int at = microConfig.numRows;
+
+    memmove(&microConfig.row[at + 1], &microConfig.row[at], sizeof(microRow) * (microConfig.numRows - at));
+
+    microConfig.row = realloc(microConfig.row, sizeof(microRow) * (microConfig.numRows + 1));
+
+    // int at = microConfig.numRows;
     microConfig.row[at].size = len;
     microConfig.row[at].chars = malloc(len + 1);
     memcpy(microConfig.row[at].chars, s, len);
@@ -611,6 +623,53 @@ void microAppendRow(char *s, size_t len)
 
     ++(microConfig.numRows);
     ++(microConfig.dirtyBuffer);
+}
+
+char *microPrompt(char *prompt)
+{
+    size_t bufferSize = 128;
+    char *buffer = malloc(bufferSize);
+
+    size_t bufferLen = 0;
+    buffer[0] = '\0';
+
+    while (1)
+    {
+        microSetStatusMessage(prompt, buffer);
+        microRefreshScreen();
+
+        int c = microReadKey();
+
+        if (c == BACKSPACE || c == DELETE_KEY || c == CTRL_KEY('h'))
+        {
+            if (bufferLen != 0)
+                buffer[--bufferLen] = '\0';
+        }
+        else if (c == '\x1b')
+        {
+            microSetStatusMessage("");
+            free(buffer);
+            return NULL;
+        }
+        else if (c == '\r')
+        {
+            if (bufferLen != 0)
+            {
+                microSetStatusMessage("");
+                return buffer;
+            }
+        }
+        else if (!iscntrl(c) && c < 128)
+        {
+            if (bufferLen == bufferSize - 1)
+            {
+                bufferSize *= 2;
+                buffer = realloc(buffer, bufferSize);
+            }
+            buffer[bufferLen++] = c;
+            buffer[bufferLen] = '\0';
+        }
+    }
 }
 
 void microUpdateRow(microRow *row)
@@ -630,16 +689,16 @@ void microUpdateRow(microRow *row)
     {
         if (row->chars[i] == '\t')
         {
-            row->render[++idx] = ' ';
+            row->render[idx++] = ' ';
 
             while (idx % MICRO_TAB_STOP != 0)
-                row->render[++idx] = ' ';
+                row->render[idx++] = ' ';
 
-            // row->render[++idx] = row->chars[i];
+            // row->render[idx++] = row->chars[i];
         }
         else
         {
-            row->render[++idx] = row->chars[i];
+            row->render[idx++] = row->chars[i];
         }
     }
 
@@ -670,7 +729,7 @@ void microOpen(char *filename)
         // memcpy(microConfig.row.chars, line, lineLen);
         // microConfig.row.chars[lineLen] = '\0';
         // microConfig.numRows = 1;
-        microAppendRow(line, lineLen);
+        microInsertRow(microConfig.numRows, line, lineLen);
     }
     free(line);
     fclose(fp);
@@ -753,16 +812,36 @@ void microRowInsertCharacter(microRow *row, int at, int c)
     ++(row->size);
     row->chars[at] = c;
     microUpdateRow(row);
+    ++(microConfig.dirtyBuffer);
 }
 
 void microInsertCharacter(int c)
 {
     if (microConfig.cursorPosY == microConfig.numRows)
-        microAppendRow("", 0);
+        microInsertRow(microConfig.numRows, "", 0);
 
     microRowInsertCharacter(&microConfig.row[microConfig.cursorPosY], microConfig.cursorPosX, c);
     ++(microConfig.cursorPosX);
-    ++(microConfig.dirtyBuffer);
+    // ++(microConfig.dirtyBuffer);
+}
+
+void microInsertNewLine()
+{
+    if (microConfig.cursorPosX == 0)
+    {
+        microInsertRow(microConfig.cursorPosY, "", 0);
+    }
+    else
+    {
+        microRow *row = &microConfig.row[microConfig.cursorPosY];
+        microInsertRow(microConfig.cursorPosY + 1, &row->chars[microConfig.cursorPosX], row->size - microConfig.cursorPosX);
+        row = &microConfig.row[microConfig.cursorPosY];
+        row->size = microConfig.cursorPosX;
+        row->chars[row->size] = '\0';
+        microUpdateRow(row);
+    }
+    ++(microConfig.cursorPosY);
+    microConfig.cursorPosX = 0;
 }
 
 int main(int argc, char *argv[])

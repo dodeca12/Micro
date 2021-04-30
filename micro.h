@@ -69,7 +69,8 @@ void appendBufferAppend(struct appendBuffer *ab, const char *s, int len);
 void appendBufferFree(struct appendBuffer *ab);
 void microMoveCursor(int key);
 void microOpen(char *filename);
-void microAppendRow(char *s, size_t len);
+// void microAppendRow(char *s, size_t len);
+void microInsertRow(int at, char *s, size_t len);
 void microScroll();
 void microUpdateRow(microRow *row);
 int microRowCursorPosXToRenderPosX(microRow *row, int cursorPosX);
@@ -85,6 +86,8 @@ void microDeleteCharacter();
 void microFreeRow(microRow *row);
 void microDeleteRow(int at);
 void microRowAppendString(microRow *row, char *s, size_t len);
+void microInsertNewLine();
+char *microPrompt(char *prompt);
 
 #endif // MICRO_H_
 

@@ -402,7 +402,7 @@ void microDrawRows(struct appendBuffer *ab)
                     appendBufferAppend(ab, "~", 1);
                     --padding;
                 }
-                while (--padding)
+                while (padding--)
                     appendBufferAppend(ab, " ", 1);
 
                 appendBufferAppend(ab, welcome, welcomeLen);
@@ -419,7 +419,21 @@ void microDrawRows(struct appendBuffer *ab)
                 len = 0;
             if (len > microConfig.screenCols)
                 len = microConfig.screenCols;
-            appendBufferAppend(ab, &microConfig.row[fileRow].render[microConfig.colOffset], len);
+
+            char *c = &microConfig.row[fileRow].render[microConfig.colOffset];
+            for(int i = 0; i < len; ++i)
+            {
+                if(isdigit(c[i]))
+                {
+                    appendBufferAppend(ab, "\x1b[31m", 5);
+                    appendBufferAppend(ab, &c[i], 1);
+                    appendBufferAppend(ab, "\x1b[39m", 5);
+                }
+                else{
+                    appendBufferAppend(ab, &c[i], 1);
+                }
+            }
+            // appendBufferAppend(ab, &microConfig.row[fileRow].render[microConfig.colOffset], len);
         }
 
         appendBufferAppend(ab, "\x1b[K", 3);

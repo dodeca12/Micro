@@ -1,16 +1,14 @@
 #ifndef MICRO_H_
 #define MICRO_H_
 
-
-
 #define CTRL_KEY(k) ((k)&0x1f)
-#define APPEND_BUFFER_INIT {NULL, 0}
+#define APPEND_BUFFER_INIT \
+    {                      \
+        NULL, 0            \
+    }
 #define MICRO_VERSION "0.0.1"
 #define MICRO_TAB_STOP 8
 #define MICRO_FORCE_QUIT 1
-
-
-
 
 typedef struct microRow
 {
@@ -87,7 +85,9 @@ void microFreeRow(microRow *row);
 void microDeleteRow(int at);
 void microRowAppendString(microRow *row, char *s, size_t len);
 void microInsertNewLine();
-char *microPrompt(char *prompt);
+char *microPrompt(char *prompt, void (*callback)(char *, int));
+void microSearch();
+int microRowRenderPosXtoCursorPosX(microRow *row, int renderPosX);
+void microSearchCallback(char *query, int key);
 
 #endif // MICRO_H_
-

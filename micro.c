@@ -252,6 +252,10 @@ void microProcessKeypress()
         microSave();
         break;
 
+    case CTRL_KEY('f'):
+        microSearch();
+        break;
+
     case LEFT_ARROW:
     case RIGHT_ARROW:
     case UP_ARROW:
@@ -509,7 +513,7 @@ void microSave()
 {
     if (microConfig.fileName == NULL)
     {
-        microConfig.fileName = microPrompt("Save file as: %s (ESC to cancel save)");
+        microConfig.fileName = microPrompt("Save file as: %s (ESC to cancel save)", NULL);
         if (microConfig.fileName == NULL)
         {
             microSetStatusMessage("Save cancelled");
@@ -625,7 +629,7 @@ void microInsertRow(int at, char *s, size_t len)
     ++(microConfig.dirtyBuffer);
 }
 
-char *microPrompt(char *prompt)
+char *microPrompt(char *prompt, void (*callback)(char *, int))
 {
     size_t bufferSize = 128;
     char *buffer = malloc(bufferSize);
@@ -648,6 +652,8 @@ char *microPrompt(char *prompt)
         else if (c == '\x1b')
         {
             microSetStatusMessage("");
+            if (callback)
+                callback(buffer, c);
             free(buffer);
             return NULL;
         }
@@ -656,6 +662,8 @@ char *microPrompt(char *prompt)
             if (bufferLen != 0)
             {
                 microSetStatusMessage("");
+                if (callback)
+                    callback(buffer, c);
                 return buffer;
             }
         }
@@ -669,7 +677,99 @@ char *microPrompt(char *prompt)
             buffer[bufferLen++] = c;
             buffer[bufferLen] = '\0';
         }
+        if (callback)
+            callback(buffer, c);
     }
+}
+
+void microSearch()
+{
+    int savedCursorPosX, savedCursorPosY, savedColOffset, savedRowOffset;
+    savedCursorPosX = microConfig.cursorPosX;
+    savedCursorPosY = microConfig.cursorPosY;
+    savedColOffset = microConfig.colOffset;
+    savedRowOffset = microConfig.rowOffset;
+
+    char *query = microPrompt("Search: %s (ESC to cancel/Arrow keys to move/Enter to search)", microSearchCallback);
+    if (query)
+    {
+        free(query);
+        microConfig.cursorPosX = savedCursorPosX;
+        microConfig.cursorPosY = savedCursorPosY;
+        microConfig.colOffset = savedColOffset;
+        microConfig.rowOffset = savedRowOffset;
+    }
+}
+
+void microSearchCallback(char *query, int key)
+{
+
+    static int previousMatch = -1;
+    static int direction = 1;
+
+    if (key == '\r' || key == '\x1b')
+    {
+        previousMatch = -1;
+        direction = 1;
+        return;
+    }
+    else if (key == RIGHT_ARROW || key == DOWN_ARROW)
+    {
+        direction = 1;
+    }
+    else if (key == LEFT_ARROW || key == UP_ARROW)
+    {
+        direction = -1;
+    }
+    else
+    {
+        previousMatch = -1;
+        direction = 1;
+    }
+
+    if (previousMatch == -1)
+        direction = 1;
+    int current = previousMatch;
+    microRow *row;
+    char *match;
+    for (int i = 0; i < microConfig.numRows; ++i)
+    {
+        current += direction;
+        if (current == -1)
+            current = microConfig.numRows - 1;
+        else if (current == microConfig.numRows)
+            current = 0;
+
+        row = &microConfig.row[current];
+        // row = &microConfig.row[i];
+        match = strstr(row->render, query);
+        if (match)
+        {
+            previousMatch = current;
+            microConfig.cursorPosY = current;
+            microConfig.cursorPosY = i;
+            microConfig.cursorPosX = microRowRenderPosXtoCursorPosX(row, match - row->render);
+            microConfig.rowOffset = microConfig.numRows;
+            break;
+        }
+    }
+}
+
+int microRowRenderPosXtoCursorPosX(microRow *row, int renderPosX)
+{
+    int currentRenderPosX = 0;
+    int cursorPosX;
+    for (cursorPosX = 0; cursorPosX < row->size; ++cursorPosX)
+    {
+        if (row->chars[cursorPosX] == '\t')
+            currentRenderPosX += (MICRO_TAB_STOP - 1) - (currentRenderPosX % MICRO_TAB_STOP);
+
+        currentRenderPosX++;
+
+        if (currentRenderPosX > renderPosX)
+            return cursorPosX;
+    }
+    return cursorPosX;
 }
 
 void microUpdateRow(microRow *row)
@@ -854,7 +954,7 @@ int main(int argc, char *argv[])
         microOpen(argv[1]);
     }
 
-    microSetStatusMessage("To Exit: Ctrl-q | To Save: Ctrl-s");
+    microSetStatusMessage("To Exit: Ctrl-q | To Save: Ctrl-s | To Find: Ctrl-f");
 
     while (1)
     {

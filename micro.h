@@ -73,6 +73,9 @@ int microRowCursorPosXToRenderPosX(microRow *row, int cursorPosX);
 void microDrawStatusBar(struct appendBuffer *ab);
 void microSetStatusMessage(const char *fmt, ...);
 void microDrawMessageBar(struct appendBuffer *ab);
+void microRowInsertCharacter(microRow *row, int at, int c);
+void microInsertCharacter(int c);
+
 
 #endif // MICRO_H_
 

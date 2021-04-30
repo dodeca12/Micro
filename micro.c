@@ -257,6 +257,10 @@ void microProcessKeypress()
     case END_KEY:
         microConfig.cursorPosX = microConfig.screenCols - 1;
         break;
+
+    default:
+        microInsertCharacter(c);
+        break;
     }
 }
 
@@ -594,6 +598,27 @@ void microDrawMessageBar(struct appendBuffer *ab)
         messageLen = microConfig.screenCols;
     if (messageLen && time(NULL) - microConfig.statusMessage_time < 5)
         appendBufferAppend(ab, microConfig.statusMessage, messageLen);
+}
+
+void microRowInsertCharacter(microRow *row, int at, int c)
+{
+    if(at > row->size || at < 0)
+        at = row->size;
+
+    row->chars = realloc(row->chars, row->size + 2);
+    memmove(&row->chars[at + 1], &row->chars[at], row->size - at + 1);
+    ++(row->size);
+    row->chars[at] = c;
+    microUpdateRow(row);
+}
+
+void microInsertCharacter(int c)
+{
+    if(microConfig.cursorPosY == microConfig.numRows)
+        microAppendRow("", 0);
+
+    microRowInsertCharacter(&microConfig.row[microConfig.cursorPosY], microConfig.cursorPosX, c);
+    ++(microConfig.cursorPosX);
 }
 
 int main(int argc, char *argv[])

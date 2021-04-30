@@ -233,13 +233,13 @@ void microProcessKeypress()
 
     case CTRL_KEY('q'):
 
-        if(microConfig.dirtyBuffer)
+        if (microConfig.dirtyBuffer && forceQuitTimes > 0)
         {
             microSetStatusMessage("ALERT! Current file has unsaved changes. ", "Press Ctrl-q again to force quit", forceQuitTimes);
             --forceQuitTimes;
             return;
         }
-        
+
         // Clears screen on exit
         write(STDIN_FILENO, "\x1b[2J", 4);
         write(STDIN_FILENO, "\x1b[H", 3);
@@ -256,6 +256,14 @@ void microProcessKeypress()
     case UP_ARROW:
     case DOWN_ARROW:
         microMoveCursor(c);
+        break;
+
+    case BACKSPACE:
+    case CTRL_KEY('h'):
+    case DELETE_KEY:
+        if (c == DELETE_KEY)
+            microMoveCursor(RIGHT_ARROW);
+        microDeleteCharacter();
         break;
 
     case PAGE_UP:
@@ -281,17 +289,44 @@ void microProcessKeypress()
         break;
 
     default:
-    microInsertCharacter(c);
-    break;
+        microInsertCharacter(c);
+        break;
     }
 
     forceQuitTimes = MICRO_FORCE_QUIT;
 }
 
+void microFreeRow(microRow *row)
+{
+    free(row->render);
+    free(row->chars);
+}
+
+void microDeleteRow(int at)
+{
+    if (at < 0 || at > microConfig.numRows)
+        return;
+
+    microFreeRow(&microConfig.row[at]);
+    memmove(&microConfig.row[at], &microConfig.row[at + 1], sizeof(microRow) * (microConfig.numRows - at - 1));
+    --(microConfig.numRows);
+    ++(microConfig.dirtyBuffer);
+}
+
+void microRowAppendString(microRow *row, char *s, size_t len)
+{
+    row->chars = realloc(row->chars, row->size + len + 1);
+    memcpy(&row->chars[row->size], s, len);
+    row->size += len;
+    row->chars[row->size] = '\0';
+    microUpdateRow(row);
+    ++(microConfig.dirtyBuffer);
+}
+
 char *microRowsToString(int *bufferLen)
 {
     int totalLen = 0;
-    for(int i = 0; i < microConfig.numRows; ++i)
+    for (int i = 0; i < microConfig.numRows; ++i)
     {
         totalLen += microConfig.row[i].size + 1;
     }
@@ -471,7 +506,7 @@ void microMoveCursor(int key)
 
 void microSave()
 {
-    if(microConfig.fileName == NULL)
+    if (microConfig.fileName == NULL)
         return;
 
     int len;
@@ -479,11 +514,11 @@ void microSave()
 
     int fd = open(microConfig.fileName, O_RDWR | O_CREAT, 0644);
 
-    if(fd != -1)
+    if (fd != -1)
     {
-        if(ftruncate(fd, len) != -1)
+        if (ftruncate(fd, len) != -1)
         {
-            if(write(fd, buffer, len) == len)
+            if (write(fd, buffer, len) == len)
             {
                 close(fd);
                 free(buffer);
@@ -521,6 +556,37 @@ void microScroll()
     if (microConfig.renderPosX >= microConfig.colOffset + microConfig.screenCols)
     {
         microConfig.colOffset = microConfig.renderPosX - microConfig.screenCols + 1;
+    }
+}
+
+void microRowDeleteCharacter(microRow *row, int at)
+{
+    if (at >= row->size || at < 0)
+        return;
+    memmove(&row->chars[at], &row->chars[at + 1], row->size - at);
+    --(row->size);
+    microUpdateRow(row);
+    ++(microConfig.dirtyBuffer);
+}
+
+void microDeleteCharacter()
+{
+    if (microConfig.cursorPosY == microConfig.numRows)
+        return;
+
+    microRow *row = &microConfig.row[microConfig.cursorPosY];
+
+    if (microConfig.cursorPosX > 0)
+    {
+        microRowDeleteCharacter(row, microConfig.cursorPosX - 1);
+        --(microConfig.cursorPosX);
+    }
+    else
+    {
+        microConfig.cursorPosX = microConfig.row[microConfig.cursorPosY - 1].size;
+        microRowAppendString(&microConfig.row[microConfig.cursorPosY - 1], row->chars, row->size);
+        microDeleteRow(microConfig.cursorPosY);
+        --(microConfig.cursorPosY);
     }
 }
 
@@ -679,7 +745,7 @@ void microDrawMessageBar(struct appendBuffer *ab)
 
 void microRowInsertCharacter(microRow *row, int at, int c)
 {
-    if(at > row->size || at < 0)
+    if (at > row->size || at < 0)
         at = row->size;
 
     row->chars = realloc(row->chars, row->size + 2);
@@ -691,7 +757,7 @@ void microRowInsertCharacter(microRow *row, int at, int c)
 
 void microInsertCharacter(int c)
 {
-    if(microConfig.cursorPosY == microConfig.numRows)
+    if (microConfig.cursorPosY == microConfig.numRows)
         microAppendRow("", 0);
 
     microRowInsertCharacter(&microConfig.row[microConfig.cursorPosY], microConfig.cursorPosX, c);

@@ -7,7 +7,7 @@
 #define APPEND_BUFFER_INIT {NULL, 0}
 #define MICRO_VERSION "0.0.1"
 #define MICRO_TAB_STOP 8
-#define MICRO_FORCE_QUIT 2
+#define MICRO_FORCE_QUIT 1
 
 
 
@@ -80,6 +80,11 @@ void microRowInsertCharacter(microRow *row, int at, int c);
 void microInsertCharacter(int c);
 char *microRowsToString(int *bufferLen);
 void microSave();
+void microRowDeleteCharacter(microRow *row, int at);
+void microDeleteCharacter();
+void microFreeRow(microRow *row);
+void microDeleteRow(int at);
+void microRowAppendString(microRow *row, char *s, size_t len);
 
 #endif // MICRO_H_
 

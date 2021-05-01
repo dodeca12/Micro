@@ -337,6 +337,8 @@ void microUpdateSyntax(microRow *row)
     if (microConfig.syntax == NULL)
         return;
 
+    char **keywords = microConfig.syntax->keywords;
+
     char *slcs = microConfig.syntax->singleLineCommentStart;
     int slcsLen = slcs ? strlen(slcs) : 0;
 
@@ -397,9 +399,35 @@ void microUpdateSyntax(microRow *row)
                 previousSeperator = 0;
                 continue;
             }
-            previousSeperator = hasSeperator(c);
-            i++;
+
         }
+
+        if(previousSeperator)
+        {
+            for (int j = 0; keywords[j]; j++)
+            {
+                int keywordLen = strlen(keywords[j]);
+                int keyword2 = keywords[j][keywordLen - 1] == '|';
+                if(keyword2)
+                    keywordLen--;
+                
+                if(!strncmp(&row->render[i], keywords[j], keywordLen) && hasSeperator(row->render[i+keywordLen]))
+                {
+                    memset(&row->highlight[i], keyword2 ? HL_KEYWORD2 : HL_KEYWORD1, keywordLen);
+                    i += keywordLen;
+                    break;
+                }
+                if(keywords[j] != NULL)
+                {
+                    previousSeperator = 0;
+                    continue;
+                }
+            }
+        }
+
+        previousSeperator = hasSeperator(c);
+        i++;
+        
     }
 }
 
@@ -951,6 +979,10 @@ int microSyntaxToColour(int highlight)
         return 34;
     case HL_COMMENT:
         return 36;
+    case HL_KEYWORD1:
+        return 33;
+    case HL_KEYWORD2:
+        return 32;
 
     default:
         return 37;

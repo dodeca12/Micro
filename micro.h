@@ -62,6 +62,8 @@ enum microHighlight
 {
     HL_DEFAULT = 0,
     HL_COMMENT,
+    HL_KEYWORD1,
+    HL_KEYWORD2,
     HL_STRING,
     HL_NUMBER,
     HL_MATCH
@@ -74,16 +76,25 @@ struct microSyntax
 {
     char *fileType;
     char **fileMatch;
+    char **keywords;
     char *singleLineCommentStart;
     int flags;
 };
 
-char *C_HL_extensions[] = {".c", ".h", ".cpp", NULL};
+char *C_HL_extensions[] = {".c", ".h", ".cpp", ".cc", NULL};
+
+char *C_HL_keywords[] = {
+  "switch", "if", "while", "for", "break", "continue", "return", "else",
+  "struct", "union", "typedef", "static", "enum", "class", "case",
+  "int|", "long|", "double|", "float|", "char|", "unsigned|", "signed|",
+  "void|", NULL
+};
 
 struct microSyntax HLDB[] = {
     {
         "c",
         C_HL_extensions,
+        C_HL_keywords,
         "//",
         HL_HIGLIGHT_NUMBERS | HL_HIGHLIGHT_STRINGS
     },

@@ -10,12 +10,16 @@
 #define MICRO_TAB_STOP 8
 #define MICRO_FORCE_QUIT 1
 
+#define HL_HIGLIGHT_NUMBERS (1<<0)
+#define HL_HIGHLIGHT_STRINGS (1<<1)
+
 typedef struct microRow
 {
     char *chars;
     int size;
     int rsize;
     char *render;
+    unsigned char *highlight;
 } microRow;
 
 struct editorConfig
@@ -31,6 +35,7 @@ struct editorConfig
     char statusMessage[80];
     time_t statusMessage_time;
     int dirtyBuffer;
+    struct microSyntax *syntax;
 } microConfig;
 
 struct appendBuffer
@@ -52,6 +57,39 @@ enum microKeyMap
     END_KEY,
     DELETE_KEY
 };
+
+enum microHighlight
+{
+    HL_DEFAULT = 0,
+    HL_COMMENT,
+    HL_STRING,
+    HL_NUMBER,
+    HL_MATCH
+
+};
+
+
+
+struct microSyntax
+{
+    char *fileType;
+    char **fileMatch;
+    char *singleLineCommentStart;
+    int flags;
+};
+
+char *C_HL_extensions[] = {".c", ".h", ".cpp", NULL};
+
+struct microSyntax HLDB[] = {
+    {
+        "c",
+        C_HL_extensions,
+        "//",
+        HL_HIGLIGHT_NUMBERS | HL_HIGHLIGHT_STRINGS
+    },
+};
+
+#define HLDB_ENTRIES (sizeof(HLDB) / sizeof(HLDB[0]))
 
 void die(const char *s);
 void disableRawInputMode();
@@ -89,5 +127,9 @@ char *microPrompt(char *prompt, void (*callback)(char *, int));
 void microSearch();
 int microRowRenderPosXtoCursorPosX(microRow *row, int renderPosX);
 void microSearchCallback(char *query, int key);
+void microUpdateSyntax(microRow *row);
+int microSyntaxToColour(int highlight);
+int hasSeperator(int c);
+void microSelectSyntaxHighlight();
 
 #endif // MICRO_H_

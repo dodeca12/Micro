@@ -536,11 +536,14 @@ void microDrawRows(struct appendBuffer *ab)
         int fileRow = r + microConfig.rowOffset;
         if (fileRow >= microConfig.numRows)
         {
-            if (microConfig.numRows == 0 && r == microConfig.screenRows / 3)
+            if (microConfig.numRows == 0 && r == (microConfig.screenRows / 3) - 3)
             {
                 char welcome[80];
+                // char repo[80];
                 int welcomeLen = snprintf(welcome, sizeof(welcome),
                                           "Micro Editor -- Version %s", MICRO_VERSION);
+                // int repoLen = snprintf(repo, sizeof(repo), "Source Repository: (%s)", REPO);
+
                 if (welcomeLen > microConfig.screenCols)
                     welcomeLen = microConfig.screenCols;
                 int padding = (microConfig.screenCols - welcomeLen) / 2;
@@ -553,12 +556,49 @@ void microDrawRows(struct appendBuffer *ab)
                     appendBufferAppend(ab, " ", 1);
 
                 appendBufferAppend(ab, welcome, welcomeLen);
+
+                // // appendBufferAppend(ab, repo, repoLen);
             }
             else
             {
                 appendBufferAppend(ab, "~", 1);
             }
+            if (microConfig.numRows == 0 && r == (microConfig.screenRows / 3) + 1)
+            {
+                char author[80];
+                int authorLen = snprintf(author, sizeof(author), "by %s", AUTHOR);
+
+                if (authorLen > microConfig.screenCols)
+                    authorLen = microConfig.screenCols;
+                int padding = (microConfig.screenCols - authorLen) / 2;
+                if (padding)
+                {
+                    // appendBufferAppend(ab, "~", 1);
+                    padding++;
+                }
+                while (padding--)
+                    appendBufferAppend(ab, " ", 1);
+                appendBufferAppend(ab, author, authorLen);
+            }
+            if (microConfig.numRows == 0 && r == (microConfig.screenRows / 3) + 2)
+            {
+                char repo[80];
+                int repoLen = snprintf(repo, sizeof(repo), "Source: %s", REPO);
+
+                if (repoLen > microConfig.screenCols)
+                    repoLen = microConfig.screenCols;
+                int padding = (microConfig.screenCols - repoLen) / 2;
+                if (padding)
+                {
+                    // appendBufferAppend(ab, "~", 1);
+                    padding++;
+                }
+                while (padding--)
+                    appendBufferAppend(ab, " ", 1);
+                appendBufferAppend(ab, repo, repoLen);
+            }
         }
+
         else
         {
             int len = microConfig.row[fileRow].rsize - microConfig.colOffset;

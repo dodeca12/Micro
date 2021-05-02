@@ -7,6 +7,8 @@
         NULL, 0            \
     }
 #define MICRO_VERSION "0.0.1"
+#define AUTHOR "Swapneeth Gorantla (@dodeca12)"
+#define REPO "https://github.com/dodeca12/Micro"
 #define MICRO_TAB_STOP 8
 #define MICRO_FORCE_QUIT 1
 

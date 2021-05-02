@@ -20,6 +20,8 @@ typedef struct microRow
     int rsize;
     char *render;
     unsigned char *highlight;
+    int idx;
+    int highlightOpenComment;
 } microRow;
 
 struct editorConfig
@@ -62,6 +64,7 @@ enum microHighlight
 {
     HL_DEFAULT = 0,
     HL_COMMENT,
+    HL_ML_COMMENT,
     HL_KEYWORD1,
     HL_KEYWORD2,
     HL_STRING,
@@ -78,6 +81,8 @@ struct microSyntax
     char **fileMatch;
     char **keywords;
     char *singleLineCommentStart;
+    char *multiLineCommentStart;
+    char *multiLineCommentEnd;
     int flags;
 };
 
@@ -95,7 +100,7 @@ struct microSyntax HLDB[] = {
         "c",
         C_HL_extensions,
         C_HL_keywords,
-        "//",
+        "//", "/*", "***",
         HL_HIGLIGHT_NUMBERS | HL_HIGHLIGHT_STRINGS
     },
 };

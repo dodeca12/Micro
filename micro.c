@@ -177,7 +177,7 @@ int microReadKey()
 int getCursorPosition(int *rows, int *cols)
 {
 
-    char buf[32];
+    char buf[16];
     unsigned int i = 0;
 
     if (write(STDOUT_FILENO, "\x1b[6n", 4) != 4)
@@ -204,7 +204,7 @@ int getCursorPosition(int *rows, int *cols)
             break;
         if (buf[i] == 'R')
             break;
-        ++i;
+        i++;
     }
     buf[i] = '\0';
 
@@ -315,8 +315,12 @@ void microDeleteRow(int at)
 
     microFreeRow(&microConfig.row[at]);
     memmove(&microConfig.row[at], &microConfig.row[at + 1], sizeof(microRow) * (microConfig.numRows - at - 1));
-    --(microConfig.numRows);
-    ++(microConfig.dirtyBuffer);
+
+    for (int i = at; i < microConfig.numRows - 1; i++)
+        microConfig.row[i].idx--;
+
+    (microConfig.numRows)--;
+    (microConfig.dirtyBuffer)++;
 }
 
 void microRowAppendString(microRow *row, char *s, size_t len)
@@ -340,37 +344,70 @@ void microUpdateSyntax(microRow *row)
     char **keywords = microConfig.syntax->keywords;
 
     char *slcs = microConfig.syntax->singleLineCommentStart;
+    char *mlcs = microConfig.syntax->multiLineCommentStart;
+    char *mlce = microConfig.syntax->multiLineCommentEnd;
+
     int slcsLen = slcs ? strlen(slcs) : 0;
+    int mlcsLen = mlcs ? strlen(mlcs) : 0;
+    int mlceLen = mlce ? strlen(mlce) : 0;
 
     int previousSeperator = 1;
     int inString = 0;
+    int inComment = (row->idx > 0 && microConfig.row[row->idx - 1].highlightOpenComment);
     int i = 0;
     while (i < row->rsize)
     {
         char c = row->render[i];
         unsigned char previousHighlight = (i > 0) ? row->highlight[i - 1] : HL_DEFAULT;
 
-        if(slcsLen && !inString)
+        if (slcsLen && !inString && !inComment)
         {
-            if(!strncmp(&row->render[i], slcs, slcsLen))
+            if (!strncmp(&row->render[i], slcs, slcsLen))
             {
                 memset(&row->highlight[i], HL_COMMENT, row->size - i);
                 break;
             }
         }
 
-        if (microConfig.syntax->flags & HL_HIGHLIGHT_STRINGS)
+        if (mlcsLen && mlceLen && !inString)
         {
-            if (c == '\\' && i + 1 < row->rsize)
+            if (inComment)
             {
-                row->highlight[i + 1] = HL_STRING;
-                i += 2;
+                row->highlight[i] = HL_ML_COMMENT;
+                if (!strncmp(&row->render[i], mlce, mlceLen))
+                {
+                    memset(&row->highlight[i], HL_ML_COMMENT, mlceLen);
+                    i += mlceLen;
+                    inComment = 0;
+                    previousSeperator = 1;
+                    continue;
+                }
+                else
+                {
+                    i++;
+                    continue;
+                }
+            }
+            else if (!strncmp(&row->render[i], mlcs, mlcsLen))
+            {
+                memset(&row->highlight[i], HL_ML_COMMENT, mlcsLen);
+                i += mlcsLen;
+                inComment = 1;
                 continue;
             }
+        }
 
+        if (microConfig.syntax->flags & HL_HIGHLIGHT_STRINGS)
+        {
             if (inString)
             {
                 row->highlight[i] = HL_STRING;
+                if (c == '\\' && i + 1 < row->rsize)
+                {
+                    row->highlight[i + 1] = HL_STRING;
+                    i += 2;
+                    continue;
+                }
                 if (c == inString)
                     inString = 0;
                 i++;
@@ -399,25 +436,24 @@ void microUpdateSyntax(microRow *row)
                 previousSeperator = 0;
                 continue;
             }
-
         }
 
-        if(previousSeperator)
+        if (previousSeperator)
         {
             for (int j = 0; keywords[j]; j++)
             {
                 int keywordLen = strlen(keywords[j]);
                 int keyword2 = keywords[j][keywordLen - 1] == '|';
-                if(keyword2)
+                if (keyword2)
                     keywordLen--;
-                
-                if(!strncmp(&row->render[i], keywords[j], keywordLen) && hasSeperator(row->render[i+keywordLen]))
+
+                if (!strncmp(&row->render[i], keywords[j], keywordLen) && hasSeperator(row->render[i + keywordLen]))
                 {
                     memset(&row->highlight[i], keyword2 ? HL_KEYWORD2 : HL_KEYWORD1, keywordLen);
                     i += keywordLen;
                     break;
                 }
-                if(keywords[j] != NULL)
+                if (keywords[j] != NULL)
                 {
                     previousSeperator = 0;
                     continue;
@@ -427,8 +463,11 @@ void microUpdateSyntax(microRow *row)
 
         previousSeperator = hasSeperator(c);
         i++;
-        
     }
+    int changed = (row->highlightOpenComment != inComment);
+    row->highlightOpenComment = inComment;
+    if (changed && row->idx + 1 < microConfig.numRows)
+        microUpdateSyntax(&microConfig.row[row->idx + 1]);
 }
 
 int hasSeperator(int c)
@@ -478,7 +517,7 @@ void microRefreshScreen()
     microDrawStatusBar(&ab);
     microDrawMessageBar(&ab);
 
-    char buf[32];
+    char buf[16];
     snprintf(buf, sizeof(buf), "\x1b[%d;%dH", (microConfig.cursorPosY - microConfig.rowOffset) + 1, (microConfig.renderPosX - microConfig.colOffset) + 1);
     appendBufferAppend(&ab, buf, strlen(buf));
 
@@ -492,7 +531,7 @@ void microRefreshScreen()
 void microDrawRows(struct appendBuffer *ab)
 {
 
-    for (int r = 0; r < microConfig.screenRows; ++r)
+    for (int r = 0; r < microConfig.screenRows; r++)
     {
         int fileRow = r + microConfig.rowOffset;
         if (fileRow >= microConfig.numRows)
@@ -508,7 +547,7 @@ void microDrawRows(struct appendBuffer *ab)
                 if (padding)
                 {
                     appendBufferAppend(ab, "~", 1);
-                    --padding;
+                    padding++;
                 }
                 while (padding--)
                     appendBufferAppend(ab, " ", 1);
@@ -732,7 +771,7 @@ void microRowDeleteCharacter(microRow *row, int at)
     if (at >= row->size || at < 0)
         return;
     memmove(&row->chars[at], &row->chars[at + 1], row->size - at);
-    --(row->size);
+    (row->size)--;
     microUpdateRow(row);
     ++(microConfig.dirtyBuffer);
 }
@@ -747,14 +786,14 @@ void microDeleteCharacter()
     if (microConfig.cursorPosX > 0)
     {
         microRowDeleteCharacter(row, microConfig.cursorPosX - 1);
-        --(microConfig.cursorPosX);
+        (microConfig.cursorPosX)--;
     }
     else
     {
         microConfig.cursorPosX = microConfig.row[microConfig.cursorPosY - 1].size;
         microRowAppendString(&microConfig.row[microConfig.cursorPosY - 1], row->chars, row->size);
         microDeleteRow(microConfig.cursorPosY);
-        --(microConfig.cursorPosY);
+        (microConfig.cursorPosY)--;
     }
 }
 
@@ -768,9 +807,15 @@ void microInsertRow(int at, char *s, size_t len)
 
     memmove(&microConfig.row[at + 1], &microConfig.row[at], sizeof(microRow) * (microConfig.numRows - at));
 
-    microConfig.row = realloc(microConfig.row, sizeof(microRow) * (microConfig.numRows + 1));
+    // microConfig.row = realloc(microConfig.row, sizeof(microRow) * (microConfig.numRows + 1));
 
     // int at = microConfig.numRows;
+
+    for (int i = at + 1; i <= microConfig.numRows; i++)
+        microConfig.row[i].idx++;
+
+    microConfig.row[at].idx = at;
+
     microConfig.row[at].size = len;
     microConfig.row[at].chars = malloc(len + 1);
     memcpy(microConfig.row[at].chars, s, len);
@@ -779,6 +824,7 @@ void microInsertRow(int at, char *s, size_t len)
     microConfig.row[at].rsize = 0;
     microConfig.row[at].render = NULL;
     microConfig.row[at].highlight = NULL;
+    microConfig.row[at].highlightOpenComment = 0;
 
     microUpdateRow(&microConfig.row[at]);
 
@@ -950,14 +996,14 @@ void microUpdateRow(microRow *row)
     for (int i = 0; i < row->size; i++)
     {
         if (row->chars[i] == '\t')
-            ++tabs;
+            tabs++;
     }
 
     free(row->render);
     row->render = malloc(row->size + tabs * (MICRO_TAB_STOP - 1) + 1);
 
     int idx = 0;
-    for (int i = 0; i < row->size; ++i)
+    for (int i = 0; i < row->size; i++)
     {
         if (row->chars[i] == '\t')
         {
@@ -991,6 +1037,7 @@ int microSyntaxToColour(int highlight)
     case HL_MATCH:
         return 34;
     case HL_COMMENT:
+    case HL_ML_COMMENT:
         return 36;
     case HL_KEYWORD1:
         return 33;
@@ -1020,7 +1067,7 @@ void microOpen(char *filename)
     {
 
         while (lineLen > 0 && (line[lineLen - 1] == '\n' || line[lineLen - 1] == '\r'))
-            --lineLen;
+            lineLen--;
 
         microInsertRow(microConfig.numRows, line, lineLen);
     }
@@ -1038,7 +1085,7 @@ int microRowCursorPosXToRenderPosX(microRow *row, int cursorPosX)
         {
             renderPosX += (MICRO_TAB_STOP - 1) - (renderPosX % MICRO_TAB_STOP);
         }
-        ++renderPosX;
+        renderPosX++;
     }
 
     return renderPosX;
@@ -1069,7 +1116,7 @@ void microDrawStatusBar(struct appendBuffer *ab)
         else
         {
             appendBufferAppend(ab, " ", 1);
-            ++len;
+            len++;
         }
     }
     appendBufferAppend(ab, "\x1b[m", 3);
@@ -1114,7 +1161,7 @@ void microInsertCharacter(int c)
         microInsertRow(microConfig.numRows, "", 0);
 
     microRowInsertCharacter(&microConfig.row[microConfig.cursorPosY], microConfig.cursorPosX, c);
-    ++(microConfig.cursorPosX);
+    (microConfig.cursorPosX)++;
     // ++(microConfig.dirtyBuffer);
 }
 

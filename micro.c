@@ -533,7 +533,20 @@ void microDrawRows(struct appendBuffer *ab)
             int currentColour = -1;
             for (int i = 0; i < len; i++)
             {
-                if (highlight[i] == HL_DEFAULT)
+                if (iscntrl(c[i]))
+                {
+                    char sym = (c[i] <= 26) ? '@' + c[i] : '?';
+                    appendBufferAppend(ab, "\x1b[7m", 4);
+                    appendBufferAppend(ab, &sym, 1);
+                    appendBufferAppend(ab, "\x1b[m,", 3);
+                    if (currentColour != -1)
+                    {
+                        char buffer[16];
+                        int colourLen = snprintf(buffer, sizeof(buffer), "\x1b[%dm", currentColour);
+                        appendBufferAppend(ab, buffer, colourLen);
+                    }
+                }
+                else if (highlight[i] == HL_DEFAULT)
                 {
                     if (currentColour != -1)
                     {

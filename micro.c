@@ -38,3 +38,6 @@ int main(int argc, char *argv[])
     }
     return 0;
 }
+// End of file single-line comment
+
+/* End of file multi-line comment */

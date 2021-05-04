@@ -39,7 +39,6 @@ void microOpen(char *filename)
 {
     free(microConfig.fileName);
     microConfig.fileName = strdup(filename);
-    printf("got here");
     microSelectSyntaxHighlight();
 
     FILE *fp = fopen(filename, "r");

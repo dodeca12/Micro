@@ -7,17 +7,17 @@
 
 ```Micro```'s welcome screen:
 
-![](welcomeScreen.png)
+![Micro Welcome Screen](welcomeScreen.png)
 
 ```Micro``` viewing ```micro.c```:
-![](microViewingMicro-c.png)
+![Micro viewing micro.c source file](microViewingMicro-c.png)
 
 You can also see ```Micro``` in action via the asciinema screencast below:
 [![asciicast](https://asciinema.org/a/PmNYYUoUcdU4OFMx0oS4hq04X.svg)](https://asciinema.org/a/PmNYYUoUcdU4OFMx0oS4hq04X)
 
 ## Features
 
-- ```Micro``` is *NIX cross-platform - it can run anywhere where a*NIX terminal can aka (Linux/macOS/BSD derivatives) - essentially any POSIX compliant OS with a terminal.
+- ```Micro``` is *NIX cross-platform - it can run anywhere where a *NIX terminal can aka (Linux/macOS/BSD derivatives) - essentially any POSIX compliant OS with a terminal.
 
 - Supports syntax highlighting (currently only ```.c```, ```.h```, ```.cpp``` and ```.cc``` files support syntax highlighting), keyword searching, save and save-as functionality.
 
@@ -30,14 +30,26 @@ You can also see ```Micro``` in action via the asciinema screencast below:
 ```Micro``` can be complied via the included ```Makefile```, simply type:
 
 ```bash
-make
+$ make
 ```
 
 Then pass in a file name argument (or no argument to open ```Micro``` blank) to view the file:
 
 ```bash
-./micro <filename>
+$ ./micro <filename>
 ```
+
+| Functionality                  |                        Key-Combination                         |
+| :----------------------------- | :------------------------------------------------------------: |
+| To exit                        |                         ```Ctrl + q```                         |
+| To force quit                  |                      ```Ctrl + q``` twice                      |
+| To save                        |                         ```Ctrl + s```                         |
+| To save-as (from blank editor) |      ```Ctrl + s``` then enter filename then ```Enter```       |
+| To abort save                  |                           ```Esc```                            |
+| To search for keyword          |       ```Ctrl + f``` then input keyword then ```Enter```       |
+| To go to next matching keyword | ```Ctrl + f``` then input keyword then navigate via arrow keys |
+| To abort search                |                           ```Esc```                            |
+| To navigate                    |                       Arrow keys to move                       |
 
 ## References and Credits
 

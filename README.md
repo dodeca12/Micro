@@ -57,4 +57,6 @@ A lot of the heavy lifting in terms of logic and terminal manipulation was done 
 
 In addition, the screencast of the terminal was done using [```asciinema```](https://asciinema.org/).  
 
-### TODO: Complete README
+## ~~LICENSE~~ LICENCE
+
+`Micro` is ~~licensed~~ licenced under the [BSD 3-Clause licence](https://opensource.org/licenses/BSD-3-Clause). For more information, check out [LICENCE](LICENSE).

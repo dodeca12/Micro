@@ -60,3 +60,5 @@ In addition, the screencast of the terminal was done using [```asciinema```](htt
 ## ~~LICENSE~~ LICENCE
 
 `Micro` is ~~licensed~~ licenced under the [BSD 3-Clause licence](https://opensource.org/licenses/BSD-3-Clause). For more information, check out [LICENCE](LICENSE).
+
+## TODO: Add comments

@@ -61,4 +61,11 @@ In addition, the screencast of the terminal was done using [```asciinema```](htt
 
 `Micro` is ~~licensed~~ licenced under the [BSD 3-Clause licence](https://opensource.org/licenses/BSD-3-Clause). For more information, check out [LICENCE](LICENSE).
 
+## Future plans
+
+Currently, `Micro` has enough functionality to match a basic text editor such as Windows Notepad and the like. `Micro` is in a state where dogfooding (though not as polished as modern editors and IDE's) is possible.  
+
+This project was an exercise to build a non-trivial project in C that has accomplished everything that I set out to do. As such, I have no further plans to implement any new features for the time being.  
 ## TODO: Add comments
+
+- Need to add comments

@@ -12,8 +12,9 @@
 ```Micro``` viewing ```micro.c```:
 ![Micro viewing micro.c source file](microViewingMicro-c.png)
 
-You can also see ```Micro``` in action via the asciinema screencast below:
-[![asciicast](https://asciinema.org/a/PmNYYUoUcdU4OFMx0oS4hq04X.svg)](https://asciinema.org/a/PmNYYUoUcdU4OFMx0oS4hq04X)
+You can also see ```Micro``` in action via the asciinema screencast below:  
+  
+[![asciicast](https://asciinema.org/a/TLLkuI1wUjlrY5z7GLwVl64PR.svg)](https://asciinema.org/a/TLLkuI1wUjlrY5z7GLwVl64PR)
 
 ## Features
 

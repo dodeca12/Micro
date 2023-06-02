@@ -35,3 +35,6 @@ test/
 
 # Ignore vscode
 .vscode
+
+# Ignore .DS_Store
+.DS_Store

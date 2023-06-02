@@ -1,33 +1,24 @@
-micro: micro.c input.o output.o bufferOperations.o search.o fileIO.o microOperations.o rowOperations.o syntaxHighlighting.o terminalManipulation.o
-	$(CC) -o micro micro.c input.o output.o bufferOperations.o search.o fileIO.o microOperations.o rowOperations.o syntaxHighlighting.o terminalManipulation.o -Wall -Werror -Wextra -pedantic -std=c99
-	rm -f *.o
+.PHONY: all clean
 
-input.o: input.h input.c
-	$(CC) -c input.c
+OS := $(shell uname)
 
-output.o: output.h output.c
-	$(CC) -c output.c
+ifeq ($(OS), Darwin)
+	CC := clang
+else
+	CC := gcc
+endif
 
-bufferOperations.o: bufferOperations.h bufferOperations.c
-	$(CC) -c bufferOperations.c
+SRC := micro.c input.c output.c bufferOperations.c search.c fileIO.c microOperations.c rowOperations.c syntaxHighlighting.c terminalManipulation.c
+OBJ := $(SRC:.c=.o)
 
-search.o: search.h search.c
-	$(CC) -c search.c
+all: micro
 
-fileIO.o: fileIO.h fileIO.c micro.h
-	$(CC) -c fileIO.c
+micro: $(OBJ)
+	$(CC) -o micro $(OBJ) -Wall -Werror -Wextra -pedantic -std=c99
+	rm -f $(OBJ)
 
-microOperations.o: microOperations.h microOperations.c
-	$(CC) -c microOperations.c
-
-syntaxHighlighting.o: syntaxHighlighting.h syntaxHighlighting.c
-	$(CC) -c syntaxHighlighting.c
-
-rowOperations.o: rowOperations.h rowOperations.c
-	$(CC) -c rowOperations.c
-
-terminalManipulation.o: terminalManipulation.h terminalManipulation.c
-	$(CC) -c terminalManipulation.c
+%.o: %.c
+	$(CC) -c $<
 
 clean:
-	rm -f *.o
+	rm -f micro $(OBJ)
